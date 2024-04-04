@@ -1,0 +1,16 @@
+{
+  "http": {
+    "addr": ":8080",
+    "log_connections": true
+  },
+  "database": {
+    "host": "localhost",
+    "port": "5437",
+    "user": "postgres",
+    "pass": "postgres",
+    "args": {
+      "sslmode": "disable"
+    },
+    "log_connections": true
+  }
+}

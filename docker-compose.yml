@@ -1,0 +1,11 @@
+name: "notes"
+services:
+  # app:
+  #   build: .
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5437:5432"
