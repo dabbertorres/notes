@@ -3,9 +3,10 @@ package apiv1
 import (
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/dabbertorres/notes/internal/notes"
 	"github.com/dabbertorres/notes/internal/users"
-	"github.com/google/uuid"
 )
 
 type Note struct{}

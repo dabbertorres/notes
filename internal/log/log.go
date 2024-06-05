@@ -3,8 +3,9 @@ package log
 import (
 	"context"
 
-	"github.com/dabbertorres/notes/internal/scope"
 	"go.uber.org/zap"
+
+	"github.com/dabbertorres/notes/internal/scope"
 )
 
 func Debug(ctx context.Context, msg string, fields ...zap.Field) {

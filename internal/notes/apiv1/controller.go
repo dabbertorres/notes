@@ -4,9 +4,10 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/dabbertorres/notes/internal/common/apiv1"
 	"github.com/dabbertorres/notes/internal/notes"
-	"github.com/google/uuid"
 )
 
 type Service interface {

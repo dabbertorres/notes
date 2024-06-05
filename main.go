@@ -9,12 +9,13 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/dabbertorres/notes/config"
-	"github.com/dabbertorres/notes/internal/notes"
-	"github.com/dabbertorres/notes/internal/notes/apiv1"
 	"github.com/samber/do"
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
+
+	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/notes"
+	"github.com/dabbertorres/notes/internal/notes/apiv1"
 )
 
 func main() {

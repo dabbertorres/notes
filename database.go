@@ -5,12 +5,13 @@ import (
 	"errors"
 	"maps"
 
-	"github.com/dabbertorres/notes/config"
-	"github.com/dabbertorres/notes/internal/database"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/do"
 	pgxuuid "github.com/vgarvardt/pgx-google-uuid/v5"
+
+	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/database"
 )
 
 type databasePool struct {

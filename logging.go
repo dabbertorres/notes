@@ -4,10 +4,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/dabbertorres/notes/config"
 	"github.com/samber/do"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/dabbertorres/notes/config"
 )
 
 func setupLogging(injector *do.Injector) (*zap.Logger, error) {

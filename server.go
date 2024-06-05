@@ -5,16 +5,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dabbertorres/notes/config"
-	"github.com/dabbertorres/notes/internal/log"
-	notesapiv1 "github.com/dabbertorres/notes/internal/notes/apiv1"
-	"github.com/dabbertorres/notes/internal/scope"
-	"github.com/dabbertorres/notes/util"
 	"github.com/felixge/httpsnoop"
 	"github.com/google/uuid"
 	"github.com/samber/do"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/log"
+	notesapiv1 "github.com/dabbertorres/notes/internal/notes/apiv1"
+	"github.com/dabbertorres/notes/internal/scope"
+	"github.com/dabbertorres/notes/util"
 )
 
 func setupServer(injector *do.Injector) (*http.Server, error) {

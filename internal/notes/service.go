@@ -8,13 +8,14 @@ import (
 	"slices"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/samber/do"
+
 	"github.com/dabbertorres/notes/internal/common/apiv1"
 	"github.com/dabbertorres/notes/internal/database"
 	"github.com/dabbertorres/notes/internal/log"
 	"github.com/dabbertorres/notes/internal/scope"
 	"github.com/dabbertorres/notes/util"
-	"github.com/google/uuid"
-	"github.com/samber/do"
 )
 
 type Repository interface {

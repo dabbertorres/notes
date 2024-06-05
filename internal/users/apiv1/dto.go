@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/dabbertorres/notes/internal/common/apiv1"
 	"github.com/dabbertorres/notes/internal/users"
 	"github.com/dabbertorres/notes/util"
-	"github.com/google/uuid"
 )
 
 type User struct {

@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/dabbertorres/notes/internal/log"
 	"go.uber.org/zap"
+
+	"github.com/dabbertorres/notes/internal/log"
 )
 
 type APIError struct {

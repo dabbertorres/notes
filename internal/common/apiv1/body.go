@@ -6,8 +6,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/dabbertorres/notes/internal/log"
 	"go.uber.org/zap"
+
+	"github.com/dabbertorres/notes/internal/log"
 )
 
 var ErrFieldNotSet = errors.New("required field not set")

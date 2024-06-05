@@ -5,16 +5,17 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"go.uber.org/zap"
+
 	"github.com/dabbertorres/notes/internal/common/apiv1"
 	"github.com/dabbertorres/notes/internal/database"
 	"github.com/dabbertorres/notes/internal/log"
 	notesdb "github.com/dabbertorres/notes/internal/notes/db"
 	"github.com/dabbertorres/notes/internal/users"
 	"github.com/dabbertorres/notes/util"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"go.uber.org/zap"
 )
 
 //go:generate go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.26.0 generate
