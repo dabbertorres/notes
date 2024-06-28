@@ -75,7 +75,7 @@ table "notes" {
   column "search_index" {
     type = tsvector
     as {
-      expr = "to_tsvector('english', title || '\n' || body)"
+      expr = "to_tsvector('english', title || '\\n' || body)"
       type = STORED
     }
   }

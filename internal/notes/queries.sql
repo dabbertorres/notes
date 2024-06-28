@@ -27,9 +27,11 @@ RETURNING *
 
 -- name: AddNoteTags :batchexec
 INSERT INTO notes.note_tags (
-  note_id, tag_id
+  note_id,
+  tag_id
 ) VALUES (
-  sqlc.arg(note_id), sqlc.arg(tag_id)
+  sqlc.arg(note_id),
+  sqlc.arg(tag_id)
 ) ON CONFLICT DO NOTHING;
 
 -- name: DeleteNoteTags :batchexec
@@ -45,8 +47,10 @@ INSERT INTO notes.user_note_access (
   user_id,
   access
 ) VALUES (
-  sqlc.arg(note_id), sqlc.arg(user_id), sqlc.arg(access)
-) ON CONFLICT DO UPDATE
+  sqlc.arg(note_id),
+  sqlc.arg(user_id),
+  sqlc.arg(access)
+) ON CONFLICT (note_id, user_id) DO UPDATE
   SET access = excluded.access
 ;
 
@@ -101,14 +105,14 @@ WHERE
 -- name: SearchNotes :many
 SELECT
   note_id,
-  ts_rank_cd(search_index, sqlc.arg(search)::text)::float4 AS rank
-  -- TODO: highlights: https://www.postgresql.org/docs/current/textsearch-controls.html#TEXTSEARCH-HEADLINE
-FROM notes.notes
+  ts_rank_cd(search_index, query)::float4 AS rank,
+  ts_headline(title || '\n' || body, query, 'StartSel=<<, StopSel=>>') AS match
+FROM notes.notes, to_tsquery(sqlc.arg(search)) AS query
 WHERE
-  rank < sqlc.arg(rank)::float4
-  AND search_index @@ to_tsquery(sqlc.arg(search))
+  query @@ search_index
 ORDER BY
   rank DESC
+LIMIT $1
 ;
 
 -- name: ListTags :many

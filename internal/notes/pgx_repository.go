@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/samber/do/v2"
 	"go.uber.org/zap"
 
 	"github.com/dabbertorres/notes/internal/common/apiv1"
@@ -15,26 +16,29 @@ import (
 	"github.com/dabbertorres/notes/internal/log"
 	notesdb "github.com/dabbertorres/notes/internal/notes/db"
 	"github.com/dabbertorres/notes/internal/users"
-	"github.com/dabbertorres/notes/util"
+	"github.com/dabbertorres/notes/internal/util"
 )
-
-//go:generate go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.26.0 generate
 
 // TODO: access control
 
-type repository struct {
+type PGXRepository struct {
 	db      database.Database
 	queries *notesdb.Queries
 }
 
-func newRepository(db database.Database) *repository {
-	return &repository{
+func NewPGXRepository(injector do.Injector) (*PGXRepository, error) {
+	db, err := do.InvokeAs[database.Database](injector)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PGXRepository{
 		db:      db,
 		queries: notesdb.New(),
-	}
+	}, nil
 }
 
-func (r *repository) SaveNote(ctx context.Context, note *Note, removeAccess []UserAccess, removeTags []Tag) (out *Note, err error) {
+func (r *PGXRepository) SaveNote(ctx context.Context, note *Note, removeAccess []UserAccess, removeTags []Tag) (out *Note, err error) {
 	err = pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		params := notesdb.SaveNoteParams{
 			NoteID:    note.ID,
@@ -134,31 +138,25 @@ func (r *repository) SaveNote(ctx context.Context, note *Note, removeAccess []Us
 	})
 	if err != nil {
 		log.Error(ctx, "error saving note", zap.Stringer("note_id", note.ID), zap.Error(err))
-		return nil, &apiv1.APIError{
-			Status:  http.StatusInternalServerError,
-			Message: "try again later",
-		}
+		return nil, apiv1.NewError(http.StatusInternalServerError, "try again later")
 	}
 
 	return out, nil
 }
 
-func (r *repository) DeleteNote(ctx context.Context, id uuid.UUID) error {
+func (r *PGXRepository) DeleteNote(ctx context.Context, id uuid.UUID) error {
 	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		return r.queries.DeleteNote(ctx, tx, id)
 	})
 	if err != nil {
 		log.Error(ctx, "error deleting note", zap.Stringer("note_id", id), zap.Error(err))
-		return &apiv1.APIError{
-			Status:  http.StatusInternalServerError,
-			Message: "try again later",
-		}
+		return apiv1.NewError(http.StatusInternalServerError, "try again later")
 	}
 
 	return nil
 }
 
-func (r *repository) GetNote(ctx context.Context, noteID uuid.UUID) (note *Note, err error) {
+func (r *PGXRepository) GetNote(ctx context.Context, noteID uuid.UUID) (note *Note, err error) {
 	err = pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		row, err := r.queries.GetNote(ctx, tx, noteID)
 		if err != nil {
@@ -219,27 +217,21 @@ func (r *repository) GetNote(ctx context.Context, noteID uuid.UUID) (note *Note,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, &apiv1.APIError{
-				Status:  http.StatusNotFound,
-				Message: "note does not exist",
-			}
+			return nil, apiv1.NewError(http.StatusNotFound, "note does not exist")
 		}
 
 		log.Error(ctx, "error fetching note", zap.Stringer("note_id", noteID), zap.Error(err))
-		return nil, &apiv1.APIError{
-			Status:  http.StatusInternalServerError,
-			Message: "try again later",
-		}
+		return nil, apiv1.NewError(http.StatusInternalServerError, "try again later")
 	}
 
 	return note, nil
 }
 
-func (r *repository) SearchNotes(ctx context.Context, searchingUser uuid.UUID, search string, rank float32) (notes []NoteSearchResult, err error) {
+func (r *PGXRepository) SearchNotes(ctx context.Context, searchingUser uuid.UUID, search string, limit int) (notes []NoteSearchResult, err error) {
 	err = pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		rows, err := r.queries.SearchNotes(ctx, tx, notesdb.SearchNotesParams{
+			Limit:  int64(limit),
 			Search: search,
-			Rank:   rank,
 		})
 		if err != nil {
 			log.Error(ctx, "error searching notes",
@@ -258,21 +250,18 @@ func (r *repository) SearchNotes(ctx context.Context, searchingUser uuid.UUID, s
 		return nil
 	})
 	if err != nil {
-		return nil, &apiv1.APIError{
-			Status:  http.StatusInternalServerError,
-			Message: "try again later",
-		}
+		return nil, apiv1.NewError(http.StatusInternalServerError, "try again later")
 	}
 
 	return notes, nil
 }
 
-func (r *repository) ListTags(ctx context.Context, userID uuid.UUID, nextID, fetchAmount int) (tags []Tag, err error) {
+func (r *PGXRepository) ListTags(ctx context.Context, userID uuid.UUID, nextID, fetchAmount int) (tags []Tag, err error) {
 	err = pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		rows, err := r.queries.ListTags(ctx, tx, notesdb.ListTagsParams{
 			UserID:    userID,
 			OrderedID: int64(nextID),
-			Limit:     int32(fetchAmount),
+			Limit:     int64(fetchAmount),
 		})
 		if err != nil {
 			log.Error(ctx, "error listing tags",
@@ -295,10 +284,7 @@ func (r *repository) ListTags(ctx context.Context, userID uuid.UUID, nextID, fet
 		return nil
 	})
 	if err != nil {
-		return nil, &apiv1.APIError{
-			Status:  http.StatusInternalServerError,
-			Message: "try again later",
-		}
+		return nil, apiv1.NewError(http.StatusInternalServerError, "try again later")
 	}
 
 	return tags, nil

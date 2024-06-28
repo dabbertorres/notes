@@ -23,8 +23,10 @@ INSERT INTO notes.user_note_access (
   user_id,
   access
 ) VALUES (
-  $1, $2, $3
-) ON CONFLICT DO UPDATE
+  $1,
+  $2,
+  $3
+) ON CONFLICT (note_id, user_id) DO UPDATE
   SET access = excluded.access
 `
 
@@ -77,9 +79,11 @@ func (b *AddNoteAccessBatchResults) Close() error {
 
 const addNoteTags = `-- name: AddNoteTags :batchexec
 INSERT INTO notes.note_tags (
-  note_id, tag_id
+  note_id,
+  tag_id
 ) VALUES (
-  $1, $2
+  $1,
+  $2
 ) ON CONFLICT DO NOTHING
 `
 

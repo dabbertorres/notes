@@ -1,6 +1,19 @@
 package apiv1
 
-import "time"
+import (
+	"fmt"
+	"net/http"
+	"time"
+)
+
+type InvalidFieldError struct {
+	Field string `json:"field"`
+	Err   string `json:"error"`
+}
+
+func (e *InvalidFieldError) Status() int   { return http.StatusBadRequest }
+func (e *InvalidFieldError) Body() any     { return e }
+func (e *InvalidFieldError) Error() string { return fmt.Sprintf("%s: %v", e.Field, e.Err) }
 
 // Validate calls parse with in, and if successful, returns the result.
 // If parse returns an error, the error is appended to errs, and the zero value of O is returned.
@@ -33,7 +46,7 @@ func Validate[I any, O any](fieldName string, in I, errs *[]error, parse func(I)
 	if err != nil {
 		*errs = append(*errs, &InvalidFieldError{
 			Field: fieldName,
-			Err:   err,
+			Err:   err.Error(),
 		})
 		var zero O
 		return zero

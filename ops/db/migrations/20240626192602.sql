@@ -1,12 +1,11 @@
 -- Drop schema named "public"
-DROP SCHEMA "public" CASCADE;
+DROP SCHEMA IF EXISTS "public" CASCADE;
 -- Add new schema named "notes"
 CREATE SCHEMA "notes";
 -- Create enum type "access_level"
 CREATE TYPE "notes"."access_level" AS ENUM ('owner', 'editor', 'viewer');
 -- Create "notes" table
-CREATE TABLE "notes"."notes" ("note_id" uuid NOT NULL, "created_at" timestamptz NOT NULL, "created_by" uuid NULL, "updated_at" timestamptz NOT NULL, "updated_by" uuid NULL, "title" text NOT NULL, "body" text NOT NULL, "search_index" tsvector NOT NULL GENERATED ALWAYS AS (to_tsvector('english'::regconfig, ((title || '
-'::text) || body))) STORED, PRIMARY KEY ("note_id"));
+CREATE TABLE "notes"."notes" ("note_id" uuid NOT NULL, "created_at" timestamptz NOT NULL, "created_by" uuid NULL, "updated_at" timestamptz NOT NULL, "updated_by" uuid NULL, "title" text NOT NULL, "body" text NOT NULL, "search_index" tsvector NOT NULL GENERATED ALWAYS AS (to_tsvector('english'::regconfig, ((title || '\n'::text) || body))) STORED, PRIMARY KEY ("note_id"));
 -- Create index "idx_note_text_search" to table: "notes"
 CREATE INDEX "idx_note_text_search" ON "notes"."notes" USING gin ("search_index");
 -- Create "users" table

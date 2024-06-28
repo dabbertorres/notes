@@ -7,18 +7,19 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	pgxuuid "github.com/vgarvardt/pgx-google-uuid/v5"
 
 	"github.com/dabbertorres/notes/config"
 	"github.com/dabbertorres/notes/internal/database"
+	"github.com/dabbertorres/notes/internal/util"
 )
 
 type databasePool struct {
 	*pgxpool.Pool
 }
 
-func setupDatabase(injector *do.Injector) (database.Database, error) {
+func setupDatabase(injector do.Injector) (database.Database, error) {
 	ctx := do.MustInvoke[context.Context](injector)
 	cfg := do.MustInvoke[*config.Config](injector)
 
@@ -33,31 +34,39 @@ func setupDatabase(injector *do.Injector) (database.Database, error) {
 	dbCfg.ConnConfig.User = cfg.Database.User
 	dbCfg.ConnConfig.Password = cfg.Database.Pass
 	maps.Copy(dbCfg.ConnConfig.RuntimeParams, cfg.Database.Args)
-	dbCfg.MaxConnLifetime = cfg.Database.MaxConnLifetime
-	dbCfg.MaxConnLifetimeJitter = cfg.Database.MaxConnLifetimeJitter
-	dbCfg.MaxConnIdleTime = cfg.Database.MaxConnIdleTime
+	dbCfg.MaxConnLifetime = cfg.Database.MaxConnLifetime.Value
+	dbCfg.MaxConnLifetimeJitter = cfg.Database.MaxConnLifetimeJitter.Value
+	dbCfg.MaxConnIdleTime = cfg.Database.MaxConnIdleTime.Value
 	dbCfg.MaxConns = int32(cfg.Database.MaxConns)
 	dbCfg.MinConns = int32(cfg.Database.MinConns)
-	dbCfg.HealthCheckPeriod = cfg.Database.HealthCheckPeriod
+	dbCfg.HealthCheckPeriod = cfg.Database.HealthCheckPeriod.Value
+
+	dbCfg.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
+		pgxuuid.Register(c.TypeMap())
+		return nil
+	}
 
 	if cfg.Database.LogConnections {
 		dbCfg.BeforeConnect = func(ctx context.Context, cc *pgx.ConnConfig) error {
 			// TODO
 			return nil
 		}
+
+		dbCfg.AfterConnect = util.AllUntilError2(dbCfg.AfterConnect, func(ctx context.Context, c *pgx.Conn) error {
+			// TODO
+			return nil
+		})
+
 		dbCfg.BeforeAcquire = func(ctx context.Context, c *pgx.Conn) bool {
 			// TODO
 			return true
 		}
+
 		dbCfg.AfterRelease = func(c *pgx.Conn) bool {
 			// TODO
 			return true
 		}
-		dbCfg.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
-			pgxuuid.Register(c.TypeMap())
-			// TODO
-			return nil
-		}
+
 		dbCfg.BeforeClose = func(c *pgx.Conn) {
 			// TODO
 		}
@@ -76,7 +85,7 @@ func (d databasePool) HealthCheck() error {
 
 	ctx := context.Background()
 
-	idle := d.Pool.AcquireAllIdle(ctx)
+	idle := d.AcquireAllIdle(ctx)
 	for _, c := range idle {
 		if err := c.Ping(ctx); err != nil {
 			errs = append(errs, err)
@@ -88,6 +97,6 @@ func (d databasePool) HealthCheck() error {
 }
 
 func (d databasePool) Shutdown() error {
-	d.Pool.Close()
+	d.Close()
 	return nil
 }

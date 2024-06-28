@@ -149,7 +149,7 @@ LIMIT $3
 type ListTagsParams struct {
 	UserID    uuid.UUID
 	OrderedID int64
-	Limit     int32
+	Limit     int64
 }
 
 type ListTagsRow struct {
@@ -242,28 +242,29 @@ func (q *Queries) SaveNote(ctx context.Context, db DBTX, arg SaveNoteParams) (No
 const searchNotes = `-- name: SearchNotes :many
 SELECT
   note_id,
-  ts_rank_cd(search_index, $1::text)::float4 AS rank
-  -- TODO: highlights: https://www.postgresql.org/docs/current/textsearch-controls.html#TEXTSEARCH-HEADLINE
-FROM notes.notes
+  ts_rank_cd(search_index, query)::float4 AS rank,
+  ts_headline(title || '\n' || body, query, 'StartSel=<<, StopSel=>>') AS match
+FROM notes.notes, to_tsquery($2) AS query
 WHERE
-  rank < $2::float4
-  AND search_index @@ to_tsquery($1)
+  query @@ search_index
 ORDER BY
   rank DESC
+LIMIT $1
 `
 
 type SearchNotesParams struct {
+	Limit  int64
 	Search string
-	Rank   float32
 }
 
 type SearchNotesRow struct {
 	NoteID uuid.UUID
 	Rank   float32
+	Match  pgtype.Text
 }
 
 func (q *Queries) SearchNotes(ctx context.Context, db DBTX, arg SearchNotesParams) ([]SearchNotesRow, error) {
-	rows, err := db.Query(ctx, searchNotes, arg.Search, arg.Rank)
+	rows, err := db.Query(ctx, searchNotes, arg.Limit, arg.Search)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +272,7 @@ func (q *Queries) SearchNotes(ctx context.Context, db DBTX, arg SearchNotesParam
 	var items []SearchNotesRow
 	for rows.Next() {
 		var i SearchNotesRow
-		if err := rows.Scan(&i.NoteID, &i.Rank); err != nil {
+		if err := rows.Scan(&i.NoteID, &i.Rank, &i.Match); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

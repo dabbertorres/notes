@@ -8,7 +8,7 @@ import (
 
 	"github.com/dabbertorres/notes/internal/common/apiv1"
 	"github.com/dabbertorres/notes/internal/users"
-	"github.com/dabbertorres/notes/util"
+	"github.com/dabbertorres/notes/internal/util"
 )
 
 type User struct {
@@ -29,11 +29,11 @@ func (u *User) ToDomain() (*users.User, error) {
 	}
 
 	if len(errs) != 0 {
-		return nil, &apiv1.APIError{
-			Status:  http.StatusBadRequest,
-			Message: "one or more invalid fields",
-			Details: util.MapSlice(errs, error.Error),
-		}
+		return nil, apiv1.NewError(
+			http.StatusBadRequest,
+			"one or more invalid fields",
+			util.MapSlice(errs, error.Error)...,
+		)
 	}
 
 	return out, nil

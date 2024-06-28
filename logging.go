@@ -4,18 +4,24 @@ import (
 	"os"
 	"time"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/dabbertorres/notes/config"
 )
 
-func setupLogging(injector *do.Injector) (*zap.Logger, error) {
-	logLevel := zap.NewAtomicLevel()
+func setupLogging(injector do.Injector) (*zap.Logger, error) {
+	// loggerProvider, err := do.InvokeAs[log.LoggerProvider](injector)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// return otelslog.NewLogger("notes", otelslog.WithLoggerProvider(loggerProvider)), nil
 
-	cfg := do.MustInvoke[*config.Config](injector).Logging
+	cfg := do.MustInvoke[*config.Config](injector).Telemetry.Logging
 
+	logLevel := do.MustInvoke[zap.AtomicLevel](injector)
 	logLevel.SetLevel(cfg.Level)
 
 	core := zapcore.NewCore(

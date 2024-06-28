@@ -38,38 +38,53 @@ func ParsePathValueWithDefault[T any](r *http.Request, id string, defaultVal T, 
 }
 
 func ReadJSONOrFail[T any](w http.ResponseWriter, r *http.Request) (value T, ok bool) {
-	if r.Header.Get("Content-Type") != "application/json" {
-		WriteError(r.Context(), w, &APIError{
-			Status: http.StatusUnsupportedMediaType,
+	if contentType := r.Header.Get("Content-Type"); contentType != "" && contentType != "application/json" {
+		WriteError(r.Context(), w, &apiError{
+			status: http.StatusUnsupportedMediaType,
 		})
 		return
 	}
 
 	if accept := r.Header.Get("Accept"); accept != "" && accept != "application/json" {
-		WriteError(r.Context(), w, &APIError{
-			Status: http.StatusNotAcceptable,
+		WriteError(r.Context(), w, &apiError{
+			status: http.StatusNotAcceptable,
 		})
 		return
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&value); err != nil {
-		WriteError(r.Context(), w, &APIError{
-			Status:  http.StatusBadRequest,
-			Message: "invalid json",
+		WriteError(r.Context(), w, &apiError{
+			status: http.StatusBadRequest,
+			body: &apiErrorBody{
+				Message: "invalid json",
+			},
 		})
-	} else {
-		ok = true
+		return value, false
 	}
 
-	return value, ok
+	return value, true
 }
 
 func WriteJSON(ctx context.Context, w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
+
+	buf, err := json.Marshal(body)
+	if err != nil {
+		log.Error(ctx, "failed to marshal response body", zap.Error(err))
+		WriteError(ctx, w, &apiError{
+			status: http.StatusInternalServerError,
+		})
+		return
+	}
+
 	w.WriteHeader(status)
 
-	buf, _ := json.Marshal(body)
 	if _, err := w.Write(buf); err != nil {
-		log.Info(ctx, "error writing response", zap.Error(err))
+		select {
+		case <-ctx.Done():
+			log.Debug(ctx, "client closed connection")
+		default:
+			log.Warn(ctx, "error writing response", zap.Error(err))
+		}
 	}
 }

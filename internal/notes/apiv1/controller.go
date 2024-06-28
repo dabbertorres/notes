@@ -42,10 +42,7 @@ func PutNote(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		noteID, err := apiv1.ParsePathValue(r, "id", true, uuid.Parse)
 		if err != nil {
-			apiv1.WriteError(r.Context(), w, &apiv1.APIError{
-				Status:  http.StatusBadRequest,
-				Message: "invalid note id",
-			})
+			apiv1.WriteError(r.Context(), w, apiv1.NewError(http.StatusBadRequest, "invalid note id"))
 			return
 		}
 

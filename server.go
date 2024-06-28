@@ -6,50 +6,82 @@ import (
 	"time"
 
 	"github.com/felixge/httpsnoop"
-	"github.com/google/uuid"
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/common/apiv1"
 	"github.com/dabbertorres/notes/internal/log"
 	notesapiv1 "github.com/dabbertorres/notes/internal/notes/apiv1"
 	"github.com/dabbertorres/notes/internal/scope"
-	"github.com/dabbertorres/notes/util"
+	usersapiv1 "github.com/dabbertorres/notes/internal/users/apiv1"
+	"github.com/dabbertorres/notes/internal/util"
 )
 
-func setupServer(injector *do.Injector) (*http.Server, error) {
-	cfg := do.MustInvoke[*config.Config](injector)
-	logger := do.MustInvoke[*zap.Logger](injector)
-
+func setupServer(injector do.Injector) (*http.Server, error) {
 	mux := http.NewServeMux()
 
-	notesService := do.MustInvoke[notesapiv1.Service](injector)
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		results := injector.HealthCheckWithContext(r.Context())
 
-	mux.HandleFunc("POST /api/v1/notes", notesapiv1.PostNote(notesService))
-	mux.HandleFunc("PUT /api/v1/notes/{id}", notesapiv1.PutNote(notesService))
-	mux.HandleFunc("DELETE /api/v1/notes/{id}", notesapiv1.DeleteNote(notesService))
-	mux.HandleFunc("GET /api/v1/notes/{id}", notesapiv1.GetNote(notesService))
-	mux.HandleFunc("GET /api/v1/notes", notesapiv1.ListNotes(notesService))
+		status := util.FoldBool(len(results) == 0, http.StatusOK, http.StatusInternalServerError)
+		apiv1.WriteJSON(r.Context(), w, status, results)
+	})
 
-	mux.HandleFunc("POST /api/v1/tags", notesapiv1.PostTag(notesService))
-	mux.HandleFunc("PUT /api/v1/tags", notesapiv1.PutTag(notesService))
-	mux.HandleFunc("DELETE /api/v1/tags/{id}", notesapiv1.DeleteTag(notesService))
-	mux.HandleFunc("GET /api/v1/tags/{id}", notesapiv1.GetTag(notesService))
-	mux.HandleFunc("GET /api/v1/tags", notesapiv1.ListTags(notesService))
+	logLevel := do.MustInvoke[zap.AtomicLevel](injector)
+	mux.Handle("PUT /logging", logLevel)
+	mux.Handle("GET /logging", logLevel)
 
-	mux.HandleFunc("POST /api/v1/users", nil)
-	mux.HandleFunc("PUT /api/v1/users/{id}", nil)
-	mux.HandleFunc("POST /api/v1/users/{id}/session", nil)
-	mux.HandleFunc("DELETE /api/v1/users/{id}/session", nil)
+	notesService := do.MustInvokeAs[notesapiv1.Service](injector)
 
-	serverLog := util.Must(zap.NewStdLogAt(logger.Named("server"), zapcore.ErrorLevel))
+	addHandler(mux, "POST", "/api/v1/notes", notesapiv1.PostNote(notesService))
+	addHandler(mux, "PUT", "/api/v1/notes/{id}", notesapiv1.PutNote(notesService))
+	addHandler(mux, "DELETE", "/api/v1/notes/{id}", notesapiv1.DeleteNote(notesService))
+	addHandler(mux, "GET", "/api/v1/notes/{id}", notesapiv1.GetNote(notesService))
+	addHandler(mux, "GET", "/api/v1/notes", notesapiv1.ListNotes(notesService))
 
-	mw := chainMiddleware(
-		tracingMiddleware(logger),
+	addHandler(mux, "POST", "/api/v1/tags", notesapiv1.PostTag(notesService))
+	addHandler(mux, "PUT", "/api/v1/tags", notesapiv1.PutTag(notesService))
+	addHandler(mux, "DELETE", "/api/v1/tags/{id}", notesapiv1.DeleteTag(notesService))
+	addHandler(mux, "GET", "/api/v1/tags/{id}", notesapiv1.GetTag(notesService))
+	addHandler(mux, "GET", "/api/v1/tags", notesapiv1.ListTags(notesService))
+
+	usersService := do.MustInvokeAs[usersapiv1.Service](injector)
+
+	addHandler(mux, "POST", "/api/v1/users", usersapiv1.PostUser(usersService))
+	addHandler(mux, "PUT", "/api/v1/users/{id}", usersapiv1.PutUser(usersService))
+	addHandler(mux, "POST", "/api/v1/users/{id}/session", usersapiv1.PostSession(usersService))
+	addHandler(mux, "DELETE", "/api/v1/users/{id}/session", usersapiv1.DeleteSession(usersService))
+
+	mw := util.ChainReverse1(
+		otelhttp.NewMiddleware("server",
+			otelhttp.WithFilter(func(r *http.Request) bool {
+				switch r.URL.Path {
+				case "/healthz":
+					return false
+				case "/logging":
+					return false
+				default:
+					return true
+				}
+			}),
+			otelhttp.WithMessageEvents(
+				otelhttp.ReadEvents,
+				otelhttp.WriteEvents,
+			),
+			otelhttp.WithPublicEndpoint(),
+			otelhttp.WithServerName("notes"),
+		),
 		loggingMiddleware(),
 		recoveryMiddleware(),
+		// TODO: auth middleware
 	)
+
+	cfg := do.MustInvoke[*config.Config](injector)
+	logger := do.MustInvoke[*zap.Logger](injector)
 
 	srv := &http.Server{
 		Addr:                         cfg.HTTP.Addr,
@@ -63,7 +95,7 @@ func setupServer(injector *do.Injector) (*http.Server, error) {
 		MaxHeaderBytes:               int(cfg.HTTP.MaxHeaderBytes),
 		TLSNextProto:                 nil,
 		ConnState:                    nil,
-		ErrorLog:                     serverLog,
+		ErrorLog:                     util.Must(zap.NewStdLogAt(logger.Named("server"), zapcore.ErrorLevel)),
 		BaseContext:                  nil,
 		ConnContext:                  nil,
 	}
@@ -76,41 +108,39 @@ func setupServer(injector *do.Injector) (*http.Server, error) {
 	return srv, nil
 }
 
-type middleware func(next http.Handler) http.Handler
+// addHandler is a helper function for adding a [http.Handler] to mux, tagging it with OTEL's http.route attribute,
+// and setting the span's name correctly.
+func addHandler(mux *http.ServeMux, method, route string, handler http.Handler) {
+	spanName := method + " " + route
 
-func chainMiddleware(mw ...middleware) middleware {
-	if len(mw) == 0 {
-		return func(next http.Handler) http.Handler { return next }
-	}
+	next := otelhttp.WithRouteTag(route, handler)
 
-	if len(mw) == 1 {
-		return mw[0]
-	}
+	mux.HandleFunc(spanName, func(w http.ResponseWriter, r *http.Request) {
+		span := trace.SpanFromContext(r.Context())
+		span.SetName(spanName)
 
-	chained := mw[len(mw)-1]
-	for i := len(mw) - 2; i >= 0; i-- {
-		nextMW := chained
-		chained = func(next http.Handler) http.Handler { return mw[i](nextMW(next)) }
-	}
-
-	return chained
+		next.ServeHTTP(w, r)
+	})
 }
 
-func tracingMiddleware(logger *zap.Logger) middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			id := uuid.New()
-			ctx := scope.WithRequestID(r.Context(), id)
-			ctx = scope.WithLogger(ctx, logger.With(zap.Stringer("request_id", id)))
-
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
+type middleware = func(http.Handler) http.Handler
 
 func loggingMiddleware() middleware {
+	logger := zap.L()
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			span := trace.SpanContextFromContext(r.Context())
+			if span.IsValid() {
+				requestLog := logger.With(
+					zap.String("trace", span.TraceID().String()),
+					zap.String("span", span.SpanID().String()),
+				)
+
+				ctx := scope.WithLogger(r.Context(), requestLog)
+				r = r.WithContext(ctx)
+			}
+
 			metrics := httpsnoop.CaptureMetrics(next, w, r)
 
 			log.Info(r.Context(), "request/response",

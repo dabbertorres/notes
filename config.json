@@ -1,7 +1,7 @@
 {
   "http": {
     "addr": ":8080",
-    "log_connections": true
+    "log_connections": false
   },
   "database": {
     "host": "localhost",
@@ -11,6 +11,24 @@
     "args": {
       "sslmode": "disable"
     },
-    "log_connections": true
+    "log_connections": false
+  },
+  "telemetry": {
+    "logging": {
+      "destinations": [
+        "stderr"
+      ],
+      "level": "debug"
+    },
+    "tracing": {
+      "destinations": [
+        "stderr"
+      ]
+    },
+    "metrics": {
+      "destinations": [
+        "stderr"
+      ]
+    }
   }
 }

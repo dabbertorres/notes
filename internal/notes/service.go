@@ -9,20 +9,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 
 	"github.com/dabbertorres/notes/internal/common/apiv1"
-	"github.com/dabbertorres/notes/internal/database"
 	"github.com/dabbertorres/notes/internal/log"
 	"github.com/dabbertorres/notes/internal/scope"
-	"github.com/dabbertorres/notes/util"
+	"github.com/dabbertorres/notes/internal/users"
+	"github.com/dabbertorres/notes/internal/util"
 )
 
 type Repository interface {
 	SaveNote(ctx context.Context, note *Note, removeAccess []UserAccess, removeTags []Tag) (*Note, error)
 	DeleteNote(ctx context.Context, id uuid.UUID) error
 	GetNote(ctx context.Context, id uuid.UUID) (*Note, error)
-	SearchNotes(ctx context.Context, searchingUser uuid.UUID, search string, rank float32) ([]NoteSearchResult, error)
+	SearchNotes(ctx context.Context, searchingUser uuid.UUID, search string, limit int) ([]NoteSearchResult, error)
 	ListTags(ctx context.Context, userID uuid.UUID, nextID, fetchAmount int) ([]Tag, error)
 }
 
@@ -30,34 +30,41 @@ type Service struct {
 	repo Repository
 }
 
-func NewService(injector *do.Injector) (*Service, error) {
-	db := do.MustInvoke[database.Database](injector)
-	return &Service{
-		repo: newRepository(db),
-	}, nil
-}
-
-func (s *Service) CreateNote(ctx context.Context, note *Note) (*Note, error) {
-	user, ok := scope.User(ctx)
-	if !ok {
-		log.Info(ctx, "user missing from request context")
-		return nil, &apiv1.APIError{
-			Status: http.StatusForbidden,
-		}
-	}
-
-	note.ID = uuid.New()
-	note.CreatedAt = time.Now()
-	note.CreatedBy = &user
-	note.UpdatedAt = note.CreatedAt
-	note.UpdatedBy = &user
-
-	note, err := s.repo.SaveNote(ctx, note, nil, nil)
+func NewService(injector do.Injector) (*Service, error) {
+	repo, err := do.InvokeAs[Repository](injector)
 	if err != nil {
 		return nil, err
 	}
 
-	return note, nil
+	return &Service{
+		repo: repo,
+	}, nil
+}
+
+func (s *Service) CreateNote(ctx context.Context, note *Note) (*Note, error) {
+	userID, ok := scope.UserID(ctx)
+	if !ok {
+		log.Info(ctx, "user missing from request context")
+		return nil, apiv1.StatusError(http.StatusForbidden)
+	}
+
+	noteID, err := uuid.NewV7()
+	if err != nil {
+		return nil, apiv1.StatusError(http.StatusServiceUnavailable)
+	}
+
+	note.ID = noteID
+	note.CreatedAt = time.Now()
+	note.CreatedBy = &users.User{ID: userID}
+	note.UpdatedAt = note.CreatedAt
+	note.UpdatedBy = &users.User{ID: userID}
+
+	savedNote, err := s.repo.SaveNote(ctx, note, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return savedNote, nil
 }
 
 func (s *Service) UpdateNote(ctx context.Context, note *Note) (*Note, error) {
@@ -95,29 +102,25 @@ func (s *Service) GetNote(ctx context.Context, id uuid.UUID) (*Note, error) {
 }
 
 func (s *Service) SearchNotes(ctx context.Context, search string, rank float32) ([]NoteSearchResult, error) {
-	user, ok := scope.User(ctx)
+	userID, ok := scope.UserID(ctx)
 	if !ok {
 		log.Info(ctx, "user missing from request context")
-		return nil, &apiv1.APIError{
-			Status: http.StatusForbidden,
-		}
+		return nil, apiv1.StatusError(http.StatusForbidden)
 	}
 
 	if rank == 0 {
 		rank = math.MaxFloat32
 	}
 
-	return s.repo.SearchNotes(ctx, user.ID, search, rank)
+	return s.repo.SearchNotes(ctx, userID, search, rank)
 }
 
 func (s *Service) ListTags(ctx context.Context, nextID, pageSize int) ([]Tag, error) {
-	user, ok := scope.User(ctx)
+	userID, ok := scope.UserID(ctx)
 	if !ok {
 		log.Info(ctx, "user missing from request context")
-		return nil, &apiv1.APIError{
-			Status: http.StatusForbidden,
-		}
+		return nil, apiv1.StatusError(http.StatusForbidden)
 	}
 
-	return s.repo.ListTags(ctx, user.ID, nextID, pageSize)
+	return s.repo.ListTags(ctx, userID, nextID, pageSize)
 }

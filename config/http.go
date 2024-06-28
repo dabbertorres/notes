@@ -1,17 +1,16 @@
 package config
 
 import (
-	"errors"
 	"net/http"
 	"time"
 )
 
 type HTTP struct {
-	Addr              string        `json:"addr"`
-	ReadHeaderTimeout time.Duration `json:"read_header_timeout"`
-	IdleTimeout       time.Duration `json:"idle_timeout"`
-	MaxHeaderBytes    uint          `json:"max_header_bytes"`
-	LogConnections    bool          `json:"log_connections"`
+	Addr              string   `json:"addr"`
+	ReadHeaderTimeout Duration `json:"read_header_timeout"`
+	IdleTimeout       Duration `json:"idle_timeout"`
+	MaxHeaderBytes    uint     `json:"max_header_bytes"`
+	LogConnections    bool     `json:"log_connections"`
 }
 
 func (h *HTTP) applyDefaults() {
@@ -19,12 +18,12 @@ func (h *HTTP) applyDefaults() {
 		h.Addr = ":8080"
 	}
 
-	if h.ReadHeaderTimeout == 0 {
-		h.ReadHeaderTimeout = 2 * time.Second
+	if h.ReadHeaderTimeout.Value == 0 {
+		h.ReadHeaderTimeout.Value = 2 * time.Second
 	}
 
-	if h.IdleTimeout == 0 {
-		h.IdleTimeout = 5 * time.Minute
+	if h.IdleTimeout.Value == 0 {
+		h.IdleTimeout.Value = 5 * time.Minute
 	}
 
 	if h.MaxHeaderBytes == 0 {
@@ -32,12 +31,10 @@ func (h *HTTP) applyDefaults() {
 	}
 }
 
-func (h *HTTP) validate() error {
-	var errs []error
-
+func (h *HTTP) validate() (errs fieldErrorList) {
 	if h.Addr == "" {
-		errs = append(errs, errors.New(".http.addr is requiredd"))
+		errs = append(errs, fieldError{".addr", "is required"})
 	}
 
-	return errors.Join(errs...)
+	return errs
 }

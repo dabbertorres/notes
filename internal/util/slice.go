@@ -1,12 +1,5 @@
 package util
 
-func Must[T any](val T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return val
-}
-
 func MapSlice[S ~[]T, T any, O any](slice S, mapper func(T) O) []O {
 	out := make([]O, len(slice))
 	for i, v := range slice {

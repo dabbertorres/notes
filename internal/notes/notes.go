@@ -1,47 +1,8 @@
 package notes
 
-import (
-	"time"
+import "github.com/samber/do/v2"
 
-	"github.com/google/uuid"
-
-	"github.com/dabbertorres/notes/internal/users"
+var Package = do.Package(
+	do.Lazy(NewPGXRepository),
+	do.Lazy(NewService),
 )
-
-type Note struct {
-	ID        uuid.UUID
-	CreatedAt time.Time
-	CreatedBy *users.User
-	UpdatedAt time.Time
-	UpdatedBy *users.User
-	Title     string
-	Body      string
-	Tags      []Tag
-	Access    []UserAccess
-}
-
-type NoteSearchResult struct {
-	ID   uuid.UUID
-	Rank float32
-	// TODO: matched parts
-}
-
-type AccessLevel string
-
-const (
-	AccessLevelOwner  AccessLevel = "owner"
-	AccessLevelEditor AccessLevel = "editor"
-	AccessLevelViewer AccessLevel = "viewer"
-)
-
-type UserAccess struct {
-	User   users.User
-	Access AccessLevel
-}
-
-type Tag struct {
-	ID        uuid.UUID
-	OrderedID int
-	User      users.User
-	Name      string
-}

@@ -9,13 +9,13 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"go.uber.org/zap"
-	"golang.org/x/sys/unix"
 
 	"github.com/dabbertorres/notes/config"
 	"github.com/dabbertorres/notes/internal/notes"
-	"github.com/dabbertorres/notes/internal/notes/apiv1"
+	"github.com/dabbertorres/notes/internal/telemetry"
+	"github.com/dabbertorres/notes/internal/users"
 )
 
 func main() {
@@ -23,18 +23,22 @@ func main() {
 	flag.StringVar(&configPath, "cfg", "config.json", "Path to config file.")
 	flag.Parse()
 
-	injector := do.NewWithOpts(&do.InjectorOpts{})
+	injector := do.NewWithOpts(&do.InjectorOpts{},
+		notes.Package,
+		users.Package,
+		telemetry.Package,
+	)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, unix.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	do.ProvideValue(injector, ctx)
+	do.ProvideValue(injector, zap.NewAtomicLevel())
 	do.ProvideNamedValue(injector, config.PathName, configPath)
 	do.Provide(injector, config.Load)
 	do.Provide(injector, setupLogging)
 	do.Provide(injector, setupDatabase)
 	do.Provide(injector, setupServer)
-	do.Provide(injector, func(i *do.Injector) (apiv1.Service, error) { return notes.NewService(i) })
 
 	logger := do.MustInvoke[*zap.Logger](injector)
 	defer logger.Sync()

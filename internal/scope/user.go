@@ -3,16 +3,16 @@ package scope
 import (
 	"context"
 
-	"github.com/dabbertorres/notes/internal/users"
+	"github.com/google/uuid"
 )
 
-type userKey struct{}
+type userIDKey struct{}
 
-func WithUser(ctx context.Context, user users.User) context.Context {
-	return context.WithValue(ctx, userKey{}, user)
+func WithUserID(ctx context.Context, userID uuid.UUID) context.Context {
+	return context.WithValue(ctx, userIDKey{}, userID)
 }
 
-func User(ctx context.Context) (users.User, bool) {
-	user, ok := ctx.Value(userKey{}).(users.User)
+func UserID(ctx context.Context) (uuid.UUID, bool) {
+	user, ok := ctx.Value(userIDKey{}).(uuid.UUID)
 	return user, ok
 }

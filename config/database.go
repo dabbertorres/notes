@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"runtime"
 	"time"
 )
@@ -13,13 +12,13 @@ type Database struct {
 	Pass                  string            `json:"pass"`
 	Name                  string            `json:"name"`
 	Args                  map[string]string `json:"args"`
-	ConnectTimeout        time.Duration     `json:"connect_timeout"`
-	MaxConnLifetime       time.Duration     `json:"max_conn_lifetime"`
-	MaxConnLifetimeJitter time.Duration     `json:"max_conn_lifetime_jitter"`
-	MaxConnIdleTime       time.Duration     `json:"max_conn_idle_time"`
+	ConnectTimeout        Duration          `json:"connect_timeout"`
+	MaxConnLifetime       Duration          `json:"max_conn_lifetime"`
+	MaxConnLifetimeJitter Duration          `json:"max_conn_lifetime_jitter"`
+	MaxConnIdleTime       Duration          `json:"max_conn_idle_time"`
 	MaxConns              int               `json:"max_conns"`
 	MinConns              int               `json:"min_conns"`
-	HealthCheckPeriod     time.Duration     `json:"health_check_period"`
+	HealthCheckPeriod     Duration          `json:"health_check_period"`
 	LogConnections        bool              `json:"log_connections"`
 }
 
@@ -48,20 +47,20 @@ func (d *Database) applyDefaults() {
 		d.Args = make(map[string]string)
 	}
 
-	if d.ConnectTimeout == 0 {
-		d.ConnectTimeout = 2 * time.Minute
+	if d.ConnectTimeout.Value == 0 {
+		d.ConnectTimeout.Value = 2 * time.Minute
 	}
 
-	if d.MaxConnLifetime <= 0 {
-		d.MaxConnLifetime = 1 * time.Hour
+	if d.MaxConnLifetime.Value <= 0 {
+		d.MaxConnLifetime.Value = 1 * time.Hour
 	}
 
-	if d.MaxConnLifetimeJitter <= 0 {
-		d.MaxConnLifetimeJitter = 1 * time.Minute
+	if d.MaxConnLifetimeJitter.Value <= 0 {
+		d.MaxConnLifetimeJitter.Value = 1 * time.Minute
 	}
 
-	if d.MaxConnIdleTime <= 0 {
-		d.MaxConnIdleTime = 15 * time.Minute
+	if d.MaxConnIdleTime.Value <= 0 {
+		d.MaxConnIdleTime.Value = 15 * time.Minute
 	}
 
 	if d.MaxConns <= 0 {
@@ -72,33 +71,31 @@ func (d *Database) applyDefaults() {
 		d.MinConns = 1
 	}
 
-	if d.HealthCheckPeriod == 0 {
-		d.HealthCheckPeriod = 1 * time.Minute
+	if d.HealthCheckPeriod.Value == 0 {
+		d.HealthCheckPeriod.Value = 1 * time.Minute
 	}
 }
 
-func (d *Database) validate() error {
-	var errs []error
-
+func (d *Database) validate() (errs fieldErrorList) {
 	if d.Host == "" {
-		errs = append(errs, errors.New(".database.host is required"))
+		errs = append(errs, fieldError{".host", "is required"})
 	}
 
 	if d.Port == 0 {
-		errs = append(errs, errors.New(".database.port is required"))
+		errs = append(errs, fieldError{".port", "is required"})
 	}
 
 	if d.User == "" {
-		errs = append(errs, errors.New(".database.user is required"))
+		errs = append(errs, fieldError{".user", "is required"})
 	}
 
 	if d.Pass == "" {
-		errs = append(errs, errors.New(".database.pass is required"))
+		errs = append(errs, fieldError{".pass", "is required"})
 	}
 
 	if d.Name == "" {
-		errs = append(errs, errors.New(".database.name is required"))
+		errs = append(errs, fieldError{".name", "is required"})
 	}
 
-	return errors.Join(errs...)
+	return errs
 }

@@ -7,16 +7,31 @@ import (
 	"github.com/dabbertorres/notes/internal/users"
 )
 
+type TODO = any
+
 type Service interface {
 	Create(context.Context, *users.User) (*users.User, error)
 	Update(context.Context, *users.User) error
-	SignIn(context.Context)
-	SignOut(context.Context)
+	SignIn(context.Context, TODO) error
+	SignOut(context.Context, TODO) error
 }
 
-type Controller struct {
-	svc Service
+func PostUser(svc Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+	}
 }
 
-func (c *Controller) CreateUser(w http.ResponseWriter, r *http.Request) {
+func PutUser(svc Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+	}
+}
+
+func PostSession(svc Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+	}
+}
+
+func DeleteSession(svc Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+	}
 }

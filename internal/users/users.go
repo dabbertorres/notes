@@ -1,15 +1,8 @@
 package users
 
-import (
-	"time"
+import "github.com/samber/do/v2"
 
-	"github.com/google/uuid"
+var Package = do.Package(
+	do.Lazy(NewService),
+	do.Lazy(NewPGXRepository),
 )
-
-type User struct {
-	ID         uuid.UUID
-	Name       string
-	CreatedAt  time.Time
-	LastSignIn time.Time
-	Active     bool
-}
