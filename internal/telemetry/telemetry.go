@@ -19,7 +19,7 @@ var Package = do.Package(
 	do.Lazy(SetupTracing),
 	do.Lazy(SetupMetrics),
 	do.Lazy(SetupLogging),
-	do.Eager(Setup),
+	do.Lazy(Setup),
 )
 
 type Service struct{}

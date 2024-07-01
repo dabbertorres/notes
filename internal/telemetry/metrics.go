@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/samber/do/v2"
@@ -12,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 
 	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/telemetry/filemetric"
 )
 
 func SetupMetrics(injector do.Injector) (*metric.MeterProvider, error) {
@@ -42,6 +44,19 @@ func SetupMetrics(injector do.Injector) (*metric.MeterProvider, error) {
 			// otherwise configured via environment variables as documented here:
 			// https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp#pkg-overview
 			ex, err = otlpmetrichttp.New(ctx)
+
+		default:
+			if fp, ok := d.AsFilepath(); ok {
+				var f *os.File
+				f, err = os.Create(fp)
+				if err != nil {
+					return nil, err
+				}
+
+				ex = filemetric.New(f)
+			} else {
+				return nil, fmt.Errorf("invalid metrics destination: %q", d)
+			}
 		}
 
 		if err != nil {

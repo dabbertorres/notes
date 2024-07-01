@@ -1,0 +1,19 @@
+http:
+  addr: :8080
+  log_connections: false
+database:
+  host: localhost
+  port: 5437
+  user: postgres
+  pass: postgres
+  args:
+    sslmode: disable
+  log_connections: false
+telemetry:
+  logging:
+    destinations: [stderr]
+    level: debug
+  tracing:
+    destinations: ["file://traces.json"]
+  metrics:
+    destinations: ["file://metrics.json"]

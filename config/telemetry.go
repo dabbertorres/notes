@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"go.uber.org/zap/zapcore"
 )
@@ -107,6 +108,10 @@ func (t TelemetryDestination) validate() error {
 		return nil
 
 	default:
+		if t.IsFilepath() {
+			return nil
+		}
+
 		return fmt.Errorf("invalid value; must be one of %q, %q, %q, %q",
 			TelemetryStdout,
 			TelemetryStderr,
@@ -114,6 +119,18 @@ func (t TelemetryDestination) validate() error {
 			TelemetryOTLPHTTP,
 		)
 	}
+}
+
+func (t TelemetryDestination) IsFilepath() bool {
+	return strings.HasPrefix(string(t), "file://")
+}
+
+func (t TelemetryDestination) AsFilepath() (string, bool) {
+	if t.IsFilepath() {
+		return strings.TrimPrefix(string(t), "file://"), true
+	}
+
+	return "", false
 }
 
 type TelemetryDestinationList []TelemetryDestination

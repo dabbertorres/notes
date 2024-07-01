@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/samber/do/v2"
@@ -12,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/telemetry/filetrace"
 )
 
 func SetupTracing(injector do.Injector) (*trace.TracerProvider, error) {
@@ -40,6 +42,19 @@ func SetupTracing(injector do.Injector) (*trace.TracerProvider, error) {
 
 		case config.TelemetryOTLPHTTP:
 			ex, err = otlptracehttp.New(ctx)
+
+		default:
+			if fp, ok := d.AsFilepath(); ok {
+				var f *os.File
+				f, err = os.Create(fp)
+				if err != nil {
+					return nil, err
+				}
+
+				ex = filetrace.New(f)
+			} else {
+				return nil, fmt.Errorf("invalid metrics destination: %q", d)
+			}
 		}
 
 		if err != nil {
