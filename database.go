@@ -10,7 +10,7 @@ import (
 	"github.com/samber/do/v2"
 	pgxuuid "github.com/vgarvardt/pgx-google-uuid/v5"
 
-	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/config"
 	"github.com/dabbertorres/notes/internal/util"
 )
 

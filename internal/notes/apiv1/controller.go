@@ -29,7 +29,7 @@ func PostNote(svc Service) http.HandlerFunc {
 			return
 		}
 
-		created, err := svc.CreateNote(r.Context(), note.ToDomain(uuid.Nil))
+		created, err := svc.CreateNote(r.Context(), note.ToDomain())
 		if err != nil {
 			apiv1.WriteError(r.Context(), w, err)
 			return
@@ -54,7 +54,9 @@ func PutNote(svc Service) http.HandlerFunc {
 			return
 		}
 
-		result, err := svc.UpdateNote(r.Context(), note.ToDomain(noteID))
+		note.ID = noteID
+
+		result, err := svc.UpdateNote(r.Context(), note.ToDomain())
 		if err != nil {
 			apiv1.WriteError(r.Context(), w, err)
 			return

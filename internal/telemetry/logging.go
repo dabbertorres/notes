@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 
-	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/config"
 )
 
 func SetupLogging(injector do.Injector) (*log.LoggerProvider, error) {

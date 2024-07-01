@@ -112,17 +112,16 @@ WHERE
   query @@ search_index
 ORDER BY
   rank DESC
-LIMIT $1
+LIMIT sqlc.arg(page_size)
 ;
 
 -- name: ListTags :many
 SELECT
   tag_id,
-  ordered_id,
   name
 FROM notes.tags
 WHERE
-  user_id = $1
-  AND ordered_id >= $2
-LIMIT $3
+  user_id = sqlc.arg(user_id)
+  AND tag_id >= sqlc.arg(next_tag_id)
+LIMIT sqlc.arg(page_size)
 ;

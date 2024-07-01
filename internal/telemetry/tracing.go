@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 
-	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/config"
 	"github.com/dabbertorres/notes/internal/telemetry/filetrace"
 )
 

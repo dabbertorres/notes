@@ -54,9 +54,13 @@ func (s *Service) CreateNote(ctx context.Context, note *Note) (*Note, error) {
 
 	note.ID = noteID
 	note.CreatedAt = time.Now()
-	note.CreatedBy = &users.User{ID: userID}
+	note.CreatedBy = users.User{ID: userID}
 	note.UpdatedAt = note.CreatedAt
-	note.UpdatedBy = &users.User{ID: userID}
+	note.UpdatedBy = users.User{ID: userID}
+	note.Access = append(note.Access, UserAccess{
+		User:   note.CreatedBy,
+		Access: AccessLevelOwner,
+	})
 
 	savedNote, err := s.repo.SaveNote(ctx, note, nil, nil)
 	if err != nil {
@@ -110,6 +114,8 @@ func (s *Service) SearchNotes(ctx context.Context, search string, limit int) ([]
 	if limit == 0 {
 		limit = 100
 	}
+
+	// TODO: search by tags
 
 	return s.repo.SearchNotes(ctx, userID, search, limit)
 }

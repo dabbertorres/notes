@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/config"
 )
 
 func setupLogging(injector do.Injector) (*zap.Logger, error) {

@@ -147,16 +147,6 @@ table "tags" {
     null = false
   }
 
-  column "ordered_id" {
-    type = bigint
-    null = false
-    identity {
-      generated = ALWAYS
-      start     = 1
-      increment = 1
-    }
-  }
-
   column "user_id" {
     type = uuid
     null = false
@@ -180,11 +170,6 @@ table "tags" {
     ref_columns = [table.users.column.user_id]
     on_update   = NO_ACTION
     on_delete   = CASCADE
-  }
-
-  index "idx_unique_ordered_id" {
-    columns = [column.ordered_id]
-    unique  = true
   }
 
   index "idx_unique_user_id_name" {

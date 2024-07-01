@@ -11,9 +11,9 @@ import (
 type Note struct {
 	ID        uuid.UUID
 	CreatedAt time.Time
-	CreatedBy *users.User
+	CreatedBy users.User
 	UpdatedAt time.Time
-	UpdatedBy *users.User
+	UpdatedBy users.User
 	Title     string
 	Body      string
 	Tags      []Tag
@@ -40,8 +40,7 @@ type UserAccess struct {
 }
 
 type Tag struct {
-	ID        uuid.UUID
-	OrderedID int
-	User      users.User
-	Name      string
+	ID   uuid.UUID
+	User users.User
+	Name string
 }

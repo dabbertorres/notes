@@ -50,14 +50,14 @@ func (r *PGXRepository) SaveNote(ctx context.Context, note *Note, removeAccess [
 			Body:      note.Body,
 		}
 
-		if note.CreatedBy != nil {
+		if note.CreatedBy.ID != uuid.Nil {
 			params.CreatedBy = uuid.NullUUID{
 				UUID:  note.CreatedBy.ID,
 				Valid: true,
 			}
 		}
 
-		if note.UpdatedBy != nil {
+		if note.UpdatedBy.ID != uuid.Nil {
 			params.UpdatedBy = uuid.NullUUID{
 				UUID:  note.UpdatedBy.ID,
 				Valid: true,
@@ -69,14 +69,15 @@ func (r *PGXRepository) SaveNote(ctx context.Context, note *Note, removeAccess [
 			log.Error(ctx, "error saving note", zap.Stringer("note_id", note.ID), zap.Error(err))
 			return err
 		}
+
 		out = &Note{
 			ID:        result.NoteID,
 			CreatedAt: result.CreatedAt.Time,
-			CreatedBy: &users.User{
+			CreatedBy: users.User{
 				ID: result.CreatedBy.UUID,
 			},
 			UpdatedAt: result.UpdatedAt.Time,
-			UpdatedBy: &users.User{
+			UpdatedBy: users.User{
 				ID: result.UpdatedBy.UUID,
 			},
 			Title:  result.Title,
@@ -167,21 +168,21 @@ func (r *PGXRepository) GetNote(ctx context.Context, noteID uuid.UUID) (note *No
 		note = &Note{
 			ID:        row.NoteID,
 			CreatedAt: row.CreatedAt.Time,
-			CreatedBy: nil,
+			CreatedBy: users.User{},
 			UpdatedAt: row.UpdatedAt.Time,
-			UpdatedBy: nil,
+			UpdatedBy: users.User{},
 			Title:     row.Title,
 			Body:      row.Body,
 		}
 
 		if row.CreatedBy.Valid {
-			note.CreatedBy = &users.User{
+			note.CreatedBy = users.User{
 				ID: row.CreatedBy.UUID,
 			}
 		}
 
 		if row.UpdatedBy.Valid {
-			note.UpdatedBy = &users.User{
+			note.UpdatedBy = users.User{
 				ID: row.UpdatedBy.UUID,
 			}
 		}
@@ -227,11 +228,11 @@ func (r *PGXRepository) GetNote(ctx context.Context, noteID uuid.UUID) (note *No
 	return note, nil
 }
 
-func (r *PGXRepository) SearchNotes(ctx context.Context, searchingUser uuid.UUID, search string, limit int) (notes []NoteSearchResult, err error) {
+func (r *PGXRepository) SearchNotes(ctx context.Context, searchingUser uuid.UUID, search string, pageSize int) (notes []NoteSearchResult, err error) {
 	err = pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		rows, err := r.queries.SearchNotes(ctx, tx, notesdb.SearchNotesParams{
-			Limit:  int64(limit),
-			Search: search,
+			Search:   search,
+			PageSize: int64(pageSize),
 		})
 		if err != nil {
 			log.Error(ctx, "error searching notes",
@@ -256,18 +257,17 @@ func (r *PGXRepository) SearchNotes(ctx context.Context, searchingUser uuid.UUID
 	return notes, nil
 }
 
-func (r *PGXRepository) ListTags(ctx context.Context, userID uuid.UUID, nextID, fetchAmount int) (tags []Tag, err error) {
+func (r *PGXRepository) ListTags(ctx context.Context, userID uuid.UUID, nextID, pageSize int) (tags []Tag, err error) {
 	err = pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		rows, err := r.queries.ListTags(ctx, tx, notesdb.ListTagsParams{
-			UserID:    userID,
-			OrderedID: int64(nextID),
-			Limit:     int64(fetchAmount),
+			UserID:   userID,
+			PageSize: int64(pageSize),
 		})
 		if err != nil {
 			log.Error(ctx, "error listing tags",
 				zap.Stringer("user_id", userID),
 				zap.Int("next_id", nextID),
-				zap.Int("fetch_amount", fetchAmount),
+				zap.Int("fetch_amount", pageSize),
 				zap.Error(err),
 			)
 			return err
@@ -275,10 +275,9 @@ func (r *PGXRepository) ListTags(ctx context.Context, userID uuid.UUID, nextID, 
 
 		tags = util.MapSlice(rows, func(row notesdb.ListTagsRow) Tag {
 			return Tag{
-				ID:        row.TagID,
-				OrderedID: int(row.OrderedID),
-				User:      users.User{ID: userID},
-				Name:      row.Name,
+				ID:   row.TagID,
+				User: users.User{ID: userID},
+				Name: row.Name,
 			}
 		})
 		return nil

@@ -13,8 +13,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/dabbertorres/notes/config"
 	"github.com/dabbertorres/notes/internal/common/apiv1"
+	"github.com/dabbertorres/notes/internal/config"
 	"github.com/dabbertorres/notes/internal/log"
 	notesapiv1 "github.com/dabbertorres/notes/internal/notes/apiv1"
 	"github.com/dabbertorres/notes/internal/scope"

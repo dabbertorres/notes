@@ -137,29 +137,27 @@ func (q *Queries) GetNoteTags(ctx context.Context, db DBTX, noteID uuid.UUID) ([
 const listTags = `-- name: ListTags :many
 SELECT
   tag_id,
-  ordered_id,
   name
 FROM notes.tags
 WHERE
   user_id = $1
-  AND ordered_id >= $2
+  AND tag_id >= $2
 LIMIT $3
 `
 
 type ListTagsParams struct {
 	UserID    uuid.UUID
-	OrderedID int64
-	Limit     int64
+	NextTagID uuid.UUID
+	PageSize  int64
 }
 
 type ListTagsRow struct {
-	TagID     uuid.UUID
-	OrderedID int64
-	Name      string
+	TagID uuid.UUID
+	Name  string
 }
 
 func (q *Queries) ListTags(ctx context.Context, db DBTX, arg ListTagsParams) ([]ListTagsRow, error) {
-	rows, err := db.Query(ctx, listTags, arg.UserID, arg.OrderedID, arg.Limit)
+	rows, err := db.Query(ctx, listTags, arg.UserID, arg.NextTagID, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +165,7 @@ func (q *Queries) ListTags(ctx context.Context, db DBTX, arg ListTagsParams) ([]
 	var items []ListTagsRow
 	for rows.Next() {
 		var i ListTagsRow
-		if err := rows.Scan(&i.TagID, &i.OrderedID, &i.Name); err != nil {
+		if err := rows.Scan(&i.TagID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -244,17 +242,17 @@ SELECT
   note_id,
   ts_rank_cd(search_index, query)::float4 AS rank,
   ts_headline(title || '\n' || body, query, 'StartSel=<<, StopSel=>>') AS match
-FROM notes.notes, to_tsquery($2) AS query
+FROM notes.notes, to_tsquery($1) AS query
 WHERE
   query @@ search_index
 ORDER BY
   rank DESC
-LIMIT $1
+LIMIT $2
 `
 
 type SearchNotesParams struct {
-	Limit  int64
-	Search string
+	Search   string
+	PageSize int64
 }
 
 type SearchNotesRow struct {
@@ -264,7 +262,7 @@ type SearchNotesRow struct {
 }
 
 func (q *Queries) SearchNotes(ctx context.Context, db DBTX, arg SearchNotesParams) ([]SearchNotesRow, error) {
-	rows, err := db.Query(ctx, searchNotes, arg.Limit, arg.Search)
+	rows, err := db.Query(ctx, searchNotes, arg.Search, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}

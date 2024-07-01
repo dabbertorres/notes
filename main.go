@@ -12,7 +12,7 @@ import (
 	"github.com/samber/do/v2"
 	"go.uber.org/zap"
 
-	"github.com/dabbertorres/notes/config"
+	"github.com/dabbertorres/notes/internal/config"
 	"github.com/dabbertorres/notes/internal/notes"
 	"github.com/dabbertorres/notes/internal/telemetry"
 	"github.com/dabbertorres/notes/internal/users"
