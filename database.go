@@ -11,7 +11,6 @@ import (
 	pgxuuid "github.com/vgarvardt/pgx-google-uuid/v5"
 
 	"github.com/dabbertorres/notes/config"
-	"github.com/dabbertorres/notes/internal/database"
 	"github.com/dabbertorres/notes/internal/util"
 )
 
@@ -19,7 +18,7 @@ type databasePool struct {
 	*pgxpool.Pool
 }
 
-func setupDatabase(injector do.Injector) (database.Database, error) {
+func setupDatabase(injector do.Injector) (databasePool, error) {
 	ctx := do.MustInvoke[context.Context](injector)
 	cfg := do.MustInvoke[*config.Config](injector)
 

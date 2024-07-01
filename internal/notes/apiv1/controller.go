@@ -5,9 +5,12 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"github.com/dabbertorres/notes/internal/common/apiv1"
+	"github.com/dabbertorres/notes/internal/log"
 	"github.com/dabbertorres/notes/internal/notes"
+	"github.com/dabbertorres/notes/internal/util"
 )
 
 type Service interface {
@@ -15,7 +18,7 @@ type Service interface {
 	UpdateNote(ctx context.Context, note *notes.Note) (*notes.Note, error)
 	DeleteNote(ctx context.Context, id uuid.UUID) error
 	GetNote(ctx context.Context, id uuid.UUID) (*notes.Note, error)
-	SearchNotes(ctx context.Context, search string, rank float32) ([]notes.NoteSearchResult, error)
+	SearchNotes(ctx context.Context, search string, limit int) ([]notes.NoteSearchResult, error)
 	ListTags(ctx context.Context, nextID, pageSize int) ([]notes.Tag, error)
 }
 
@@ -77,7 +80,23 @@ func GetNote(svc Service) http.HandlerFunc {
 
 func ListNotes(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		results, err := svc.SearchNotes(r.Context(), "", 100)
+		if err != nil {
+			log.Error(r.Context(), "error searching notes", zap.Error(err))
+			apiv1.WriteError(r.Context(), w, err)
+			return
+		}
+
+		page := apiv1.Page[Note]{
+			NextPageToken: nil,
+			Items: util.MapSlice(results, func(note notes.NoteSearchResult) Note {
+				return Note{
+					ID: note.ID,
+				}
+			}),
+		}
+
+		apiv1.WriteJSON(r.Context(), w, http.StatusOK, page)
 	}
 }
 

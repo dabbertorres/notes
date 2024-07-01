@@ -20,7 +20,7 @@ import (
 
 func main() {
 	var configPath string
-	flag.StringVar(&configPath, "cfg", "config.json", "Path to config file.")
+	flag.StringVar(&configPath, "cfg", "config.yaml", "Path to config file.")
 	flag.Parse()
 
 	injector := do.NewWithOpts(&do.InjectorOpts{},
@@ -45,7 +45,7 @@ func main() {
 
 	srv := do.MustInvoke[*http.Server](injector)
 
-	logger.Info("starting")
+	logger.Info("starting", zap.String("addr", srv.Addr))
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

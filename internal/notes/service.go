@@ -3,7 +3,6 @@ package notes
 import (
 	"cmp"
 	"context"
-	"math"
 	"net/http"
 	"slices"
 	"time"
@@ -101,18 +100,18 @@ func (s *Service) GetNote(ctx context.Context, id uuid.UUID) (*Note, error) {
 	return s.repo.GetNote(ctx, id)
 }
 
-func (s *Service) SearchNotes(ctx context.Context, search string, rank float32) ([]NoteSearchResult, error) {
+func (s *Service) SearchNotes(ctx context.Context, search string, limit int) ([]NoteSearchResult, error) {
 	userID, ok := scope.UserID(ctx)
 	if !ok {
 		log.Info(ctx, "user missing from request context")
 		return nil, apiv1.StatusError(http.StatusForbidden)
 	}
 
-	if rank == 0 {
-		rank = math.MaxFloat32
+	if limit == 0 {
+		limit = 100
 	}
 
-	return s.repo.SearchNotes(ctx, userID, search, rank)
+	return s.repo.SearchNotes(ctx, userID, search, limit)
 }
 
 func (s *Service) ListTags(ctx context.Context, nextID, pageSize int) ([]Tag, error) {

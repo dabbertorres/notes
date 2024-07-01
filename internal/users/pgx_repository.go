@@ -47,11 +47,37 @@ func (r *PGXRepository) SaveUser(ctx context.Context, user *User) (out *User, er
 			log.Error(ctx, "error saving user", zap.Stringer("user_id", user.ID), zap.Error(err))
 			return err
 		}
+
+		out = user
+		return nil
 	})
+
+	return out, err
 }
 
 func (r *PGXRepository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	return pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		return r.queries.DeleteUser(ctx, tx, userID)
+	})
 }
 
-func (r *PGXRepository) GetUser(ctx context.Context, userID uuid.UUID) error {
+func (r *PGXRepository) GetUser(ctx context.Context, userID uuid.UUID) (out *User, err error) {
+	err = pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		user, err := r.queries.GetUser(ctx, tx, userID)
+		if err != nil {
+			return err
+		}
+
+		out = &User{
+			ID:         user.UserID,
+			Name:       user.Name,
+			CreatedAt:  user.CreatedAt.Time,
+			LastSignIn: user.LastSignIn.Time,
+			Active:     user.Active,
+		}
+
+		return nil
+	})
+
+	return out, err
 }

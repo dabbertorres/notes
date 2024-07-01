@@ -9,7 +9,9 @@ import (
 	"github.com/dabbertorres/notes/internal/users"
 )
 
-type Note struct{}
+type Note struct {
+	ID uuid.UUID `json:"id"`
+}
 
 func (n *Note) FromDomain(domain *notes.Note) {
 	// TODO

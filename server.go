@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/felixge/httpsnoop"
+	"github.com/google/uuid"
 	"github.com/samber/do/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/trace"
@@ -17,19 +18,17 @@ import (
 	"github.com/dabbertorres/notes/internal/log"
 	notesapiv1 "github.com/dabbertorres/notes/internal/notes/apiv1"
 	"github.com/dabbertorres/notes/internal/scope"
+	"github.com/dabbertorres/notes/internal/telemetry"
 	usersapiv1 "github.com/dabbertorres/notes/internal/users/apiv1"
 	"github.com/dabbertorres/notes/internal/util"
 )
 
 func setupServer(injector do.Injector) (*http.Server, error) {
+	do.MustInvoke[telemetry.Service](injector)
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		results := injector.HealthCheckWithContext(r.Context())
-
-		status := util.FoldBool(len(results) == 0, http.StatusOK, http.StatusInternalServerError)
-		apiv1.WriteJSON(r.Context(), w, status, results)
-	})
+	mux.Handle("GET /healthz", healthCheck(injector))
 
 	logLevel := do.MustInvoke[zap.AtomicLevel](injector)
 	mux.Handle("PUT /logging", logLevel)
@@ -78,6 +77,13 @@ func setupServer(injector do.Injector) (*http.Server, error) {
 		loggingMiddleware(),
 		recoveryMiddleware(),
 		// TODO: auth middleware
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := scope.WithUserID(r.Context(), uuid.Max)
+
+				next.ServeHTTP(w, r.WithContext(ctx))
+			})
+		},
 	)
 
 	cfg := do.MustInvoke[*config.Config](injector)
@@ -106,6 +112,23 @@ func setupServer(injector do.Injector) (*http.Server, error) {
 	}
 
 	return srv, nil
+}
+
+func healthCheck(injector do.Injector) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		results := injector.HealthCheckWithContext(r.Context())
+
+		var hasErrors bool
+		for _, e := range results {
+			if e != nil {
+				hasErrors = true
+				break
+			}
+		}
+
+		status := util.FoldBool(hasErrors, http.StatusInternalServerError, http.StatusOK)
+		apiv1.WriteJSON(r.Context(), w, status, results)
+	})
 }
 
 // addHandler is a helper function for adding a [http.Handler] to mux, tagging it with OTEL's http.route attribute,
