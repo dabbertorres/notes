@@ -7,12 +7,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPageMarshalJSON(t *testing.T) {
+type testPageTokenData struct {
+	LastItemID string
+}
+
+func (t *testPageTokenData) EncodePager() ([][]byte, error) {
+	return [][]byte{
+		[]byte(t.LastItemID),
+	}, nil
+}
+
+func (t *testPageTokenData) DecodePager(data [][]byte) error {
+	if t == nil {
+		return nil
+	}
+
+	t.LastItemID = string(data[0])
+	return nil
+}
+
+func TestPage_MarshalJSON(t *testing.T) {
 	t.Run("has_next_page", func(t *testing.T) {
-		page := Page[int]{
-			NextPageToken: &NextPageToken{
-				NextItemID: "131",
-				PageSize:   100,
+		page := Page[int, *testPageTokenData]{
+			NextPageToken: &PageToken[*testPageTokenData]{
+				Data:     &testPageTokenData{LastItemID: "131"},
+				PageSize: 100,
 			},
 			Items: []int{5, 3, 1},
 		}
@@ -23,7 +42,7 @@ func TestPageMarshalJSON(t *testing.T) {
 	})
 
 	t.Run("is_last_page", func(t *testing.T) {
-		page := Page[int]{
+		page := Page[int, *testPageTokenData]{
 			NextPageToken: nil,
 			Items:         []int{5, 3, 1},
 		}
@@ -34,18 +53,18 @@ func TestPageMarshalJSON(t *testing.T) {
 	})
 }
 
-func TestPageUnmarshalJSON(t *testing.T) {
+func TestPage_UnmarshalJSON(t *testing.T) {
 	t.Run("has_next_page", func(t *testing.T) {
 		data := `{"next_page_token": "MTMxOzEwMA", "items": [5, 3, 1]}`
 
-		var page Page[int]
+		var page Page[int, *testPageTokenData]
 		err := json.Unmarshal([]byte(data), &page)
 		assert.NoError(t, err)
 
-		expect := Page[int]{
-			NextPageToken: &NextPageToken{
-				NextItemID: "131",
-				PageSize:   100,
+		expect := Page[int, *testPageTokenData]{
+			NextPageToken: &PageToken[*testPageTokenData]{
+				Data:     &testPageTokenData{LastItemID: "131"},
+				PageSize: 100,
 			},
 			Items: []int{5, 3, 1},
 		}
@@ -56,11 +75,11 @@ func TestPageUnmarshalJSON(t *testing.T) {
 	t.Run("last_page", func(t *testing.T) {
 		data := `{"items": [5, 3, 1]}`
 
-		var page Page[int]
+		var page Page[int, *testPageTokenData]
 		err := json.Unmarshal([]byte(data), &page)
 		assert.NoError(t, err)
 
-		expect := Page[int]{
+		expect := Page[int, *testPageTokenData]{
 			NextPageToken: nil,
 			Items:         []int{5, 3, 1},
 		}
@@ -69,10 +88,10 @@ func TestPageUnmarshalJSON(t *testing.T) {
 	})
 }
 
-func TestNextPageTokenMarshalText(t *testing.T) {
-	token := NextPageToken{
-		NextItemID: "131",
-		PageSize:   100,
+func TestPageToken_MarshalText(t *testing.T) {
+	token := PageToken[*testPageTokenData]{
+		Data:     &testPageTokenData{LastItemID: "131"},
+		PageSize: 100,
 	}
 
 	out, err := token.MarshalText()
@@ -80,30 +99,30 @@ func TestNextPageTokenMarshalText(t *testing.T) {
 	assert.Equal(t, []byte("MTMxOzEwMA"), out)
 }
 
-func TestNextPageTokenUnmarshalText(t *testing.T) {
+func TestPageToken_UnmarshalText(t *testing.T) {
 	text := "MTMxOzEwMA"
 
-	var token NextPageToken
+	var token PageToken[*testPageTokenData]
 	err := token.UnmarshalText([]byte(text))
 	assert.NoError(t, err)
 
-	expect := NextPageToken{
-		NextItemID: "131",
-		PageSize:   100,
+	expect := PageToken[*testPageTokenData]{
+		Data:     &testPageTokenData{LastItemID: "131"},
+		PageSize: 100,
 	}
 	assert.Equal(t, expect, token)
 }
 
-func TestNextPageTokenMarshalRoundTrip(t *testing.T) {
-	input := NextPageToken{
-		NextItemID: "131",
-		PageSize:   100,
+func TestPageToken_MarshalRoundTrip(t *testing.T) {
+	input := PageToken[*testPageTokenData]{
+		Data:     &testPageTokenData{LastItemID: "131"},
+		PageSize: 100,
 	}
 
 	out, err := input.MarshalText()
 	assert.NoError(t, err)
 
-	var output NextPageToken
+	var output PageToken[*testPageTokenData]
 	err = output.UnmarshalText(out)
 	assert.NoError(t, err)
 

@@ -1,39 +1,3 @@
-schema "notes" {
-}
-
-table "users" {
-  schema = schema.notes
-
-  column "user_id" {
-    type = uuid
-    null = false
-  }
-
-  column "name" {
-    type = text
-    null = false
-  }
-
-  column "created_at" {
-    type = timestamptz
-    null = false
-  }
-
-  column "last_sign_in" {
-    type = timestamptz
-    null = false
-  }
-
-  column "active" {
-    type = bool
-    null = false
-  }
-
-  primary_key {
-    columns = [column.user_id]
-  }
-}
-
 table "notes" {
   schema = schema.notes
 
@@ -85,18 +49,9 @@ table "notes" {
   }
 
   index "idx_note_text_search" {
-    type = GIN
+    type    = GIN
     columns = [column.search_index]
   }
-}
-
-enum "access_level" {
-  schema = schema.notes
-  values = [
-    "owner",
-    "editor",
-    "viewer",
-  ]
 }
 
 table "user_note_access" {
@@ -136,48 +91,6 @@ table "user_note_access" {
     ref_columns = [table.users.column.user_id]
     on_update   = NO_ACTION
     on_delete   = CASCADE
-  }
-}
-
-table "tags" {
-  schema = schema.notes
-
-  column "tag_id" {
-    type = uuid
-    null = false
-  }
-
-  column "user_id" {
-    type = uuid
-    null = false
-  }
-
-  column "name" {
-    type = text
-    null = false
-  }
-
-  check "non empty name" {
-    expr = "LENGTH(name) > 0"
-  }
-
-  primary_key {
-    columns = [column.tag_id]
-  }
-
-  foreign_key "user_id" {
-    columns     = [column.user_id]
-    ref_columns = [table.users.column.user_id]
-    on_update   = NO_ACTION
-    on_delete   = CASCADE
-  }
-
-  index "idx_unique_user_id_name" {
-    columns = [
-      column.user_id,
-      column.name,
-    ]
-    unique = true
   }
 }
 

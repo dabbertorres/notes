@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.26.0
 
-package db
+package database
 
 import (
 	"database/sql/driver"
@@ -65,27 +65,9 @@ func (e NotesAccessLevel) Valid() bool {
 	return false
 }
 
-type NotesNote struct {
-	NoteID      uuid.UUID
-	CreatedAt   pgtype.Timestamptz
-	CreatedBy   uuid.NullUUID
-	UpdatedAt   pgtype.Timestamptz
-	UpdatedBy   uuid.NullUUID
-	Title       string
-	Body        string
-	SearchIndex interface{}
-}
-
-type NotesNoteTag struct {
-	NoteID uuid.UUID
-	TagID  uuid.UUID
-}
-
 type NotesTag struct {
-	TagID     uuid.UUID
-	OrderedID int64
-	UserID    uuid.UUID
-	Name      string
+	TagID uuid.UUID
+	Name  string
 }
 
 type NotesUser struct {
@@ -94,10 +76,4 @@ type NotesUser struct {
 	CreatedAt  pgtype.Timestamptz
 	LastSignIn pgtype.Timestamptz
 	Active     bool
-}
-
-type NotesUserNoteAccess struct {
-	NoteID uuid.UUID
-	UserID uuid.UUID
-	Access NotesAccessLevel
 }

@@ -18,7 +18,7 @@ INSERT INTO notes.users (
 RETURNING *
 ;
 
--- name: DeleteUser :exec
+-- name: DeleteUser :execrows
 DELETE FROM notes.users
 WHERE
   user_id = sqlc.arg(user_id)

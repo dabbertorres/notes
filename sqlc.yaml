@@ -17,27 +17,54 @@ sql:
   - engine: "postgresql"
     database:
       uri: "postgres://postgres:postgres@localhost:5437/postgres?sslmode=disable"
-    queries: "internal/notes/queries.sql"
+    queries:
+      - "internal/notes/queries.sql"
+      - "internal/tags/queries.sql"
+      - "internal/users/queries.sql"
     schema: "ops/db/migrations/"
     gen:
       go:
-        package: "db"
+        package: "database"
         sql_package: "pgx/v5"
-        out: "internal/notes/db/"
-        emit_enum_valid_method: true
-        emit_interface: false
+        out: "internal/database"
         emit_methods_with_db_argument: true
+        emit_enum_valid_method: true
+        omit_unused_structs: true
+    strict_function_checks: true
+    strict_order_by: true
+    analyzer:
+      database: true
+    rules:
+      - sqlc/db-prepare
 
-  - engine: "postgresql"
-    database:
-      uri: "postgres://postgres:postgres@localhost:5437/postgres?sslmode=disable"
-    queries: "internal/users/queries.sql"
-    schema: "ops/db/migrations/"
-    gen:
-      go:
-        package: "db"
-        sql_package: "pgx/v5"
-        out: "internal/users/db/"
-        emit_enum_valid_method: true
-        emit_interface: false
-        emit_methods_with_db_argument: true
+  # - engine: "postgresql"
+  #   database:
+  #     uri: "postgres://postgres:postgres@localhost:5437/postgres?sslmode=disable"
+  #   queries: "internal/tags/queries.sql"
+  #   schema: "ops/db/migrations/"
+  #   gen:
+  #     go:
+  #       package: "db"
+  #       sql_package: "pgx/v5"
+  #       out: "internal/tags/db/"
+  #       emit_enum_valid_method: true
+  #       emit_interface: false
+  #       emit_methods_with_db_argument: true
+  #   rules:
+  #     - sqlc/db-prepare
+  #
+  # - engine: "postgresql"
+  #   database:
+  #     uri: "postgres://postgres:postgres@localhost:5437/postgres?sslmode=disable"
+  #   queries: "internal/users/queries.sql"
+  #   schema: "ops/db/migrations/"
+  #   gen:
+  #     go:
+  #       package: "db"
+  #       sql_package: "pgx/v5"
+  #       out: "internal/users/db/"
+  #       emit_enum_valid_method: true
+  #       emit_interface: false
+  #       emit_methods_with_db_argument: true
+  #   rules:
+  #     - sqlc/db-prepare

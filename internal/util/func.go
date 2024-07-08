@@ -88,3 +88,14 @@ func FoldBool[T any](success bool, onSuccess, onFailure T) T {
 	}
 	return onFailure
 }
+
+func FoldBoolFunc[T any](success bool, onSuccess, onFailure func() T) T {
+	if success {
+		return onSuccess()
+	}
+	return onFailure()
+}
+
+func Zero[T any]() (zero T) { return zero }
+
+func IsZero[T comparable](v T) bool { return v == Zero[T]() }

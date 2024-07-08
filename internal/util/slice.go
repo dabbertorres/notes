@@ -8,6 +8,14 @@ func MapSlice[S ~[]T, T any, O any](slice S, mapper func(T) O) []O {
 	return out
 }
 
+func MapSliceIndexed[S ~[]T, T any, O any](slice S, mapper func(int, T) O) []O {
+	out := make([]O, len(slice))
+	for i, v := range slice {
+		out[i] = mapper(i, v)
+	}
+	return out
+}
+
 // SliceDiff does the same thing as [SliceDiffBy], but is a convenience for values
 // that are directly comparable (or otherwise don't need custom comparison logic).
 func SliceDiff[S ~[]T, T comparable](before, after S) (additions, deletions S) {

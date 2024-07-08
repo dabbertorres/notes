@@ -16,3 +16,8 @@ func UserID(ctx context.Context) (uuid.UUID, bool) {
 	user, ok := ctx.Value(userIDKey{}).(uuid.UUID)
 	return user, ok
 }
+
+func MustUserID(ctx context.Context) uuid.UUID {
+	user := ctx.Value(userIDKey{}).(uuid.UUID)
+	return user
+}

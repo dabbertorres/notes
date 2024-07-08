@@ -18,6 +18,7 @@ import (
 	"github.com/dabbertorres/notes/internal/log"
 	notesapiv1 "github.com/dabbertorres/notes/internal/notes/apiv1"
 	"github.com/dabbertorres/notes/internal/scope"
+	tagsapiv1 "github.com/dabbertorres/notes/internal/tags/apiv1"
 	"github.com/dabbertorres/notes/internal/telemetry"
 	usersapiv1 "github.com/dabbertorres/notes/internal/users/apiv1"
 	"github.com/dabbertorres/notes/internal/util"
@@ -42,11 +43,13 @@ func setupServer(injector do.Injector) (*http.Server, error) {
 	addHandler(mux, "GET", "/api/v1/notes/{id}", notesapiv1.GetNote(notesService))
 	addHandler(mux, "GET", "/api/v1/notes", notesapiv1.ListNotes(notesService))
 
-	addHandler(mux, "POST", "/api/v1/tags", notesapiv1.PostTag(notesService))
-	addHandler(mux, "PUT", "/api/v1/tags", notesapiv1.PutTag(notesService))
-	addHandler(mux, "DELETE", "/api/v1/tags/{id}", notesapiv1.DeleteTag(notesService))
-	addHandler(mux, "GET", "/api/v1/tags/{id}", notesapiv1.GetTag(notesService))
-	addHandler(mux, "GET", "/api/v1/tags", notesapiv1.ListTags(notesService))
+	tagsService := do.MustInvokeAs[tagsapiv1.Service](injector)
+
+	addHandler(mux, "POST", "/api/v1/tags", tagsapiv1.PostTag(tagsService))
+	addHandler(mux, "PUT", "/api/v1/tags", tagsapiv1.PutTag(tagsService))
+	addHandler(mux, "DELETE", "/api/v1/tags/{id}", tagsapiv1.DeleteTag(tagsService))
+	addHandler(mux, "GET", "/api/v1/tags/{id}", tagsapiv1.GetTag(tagsService))
+	addHandler(mux, "GET", "/api/v1/tags", tagsapiv1.ListTags(tagsService))
 
 	usersService := do.MustInvokeAs[usersapiv1.Service](injector)
 
@@ -108,6 +111,7 @@ func setupServer(injector do.Injector) (*http.Server, error) {
 
 	if cfg.HTTP.LogConnections {
 		srv.ConnState = func(c net.Conn, cs http.ConnState) {
+			// TODO
 		}
 	}
 

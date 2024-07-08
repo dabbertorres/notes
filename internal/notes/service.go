@@ -1,29 +1,19 @@
 package notes
 
 import (
-	"cmp"
 	"context"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/samber/do/v2"
+	"go.uber.org/zap"
 
 	"github.com/dabbertorres/notes/internal/common/apiv1"
 	"github.com/dabbertorres/notes/internal/log"
 	"github.com/dabbertorres/notes/internal/scope"
 	"github.com/dabbertorres/notes/internal/users"
-	"github.com/dabbertorres/notes/internal/util"
 )
-
-type Repository interface {
-	SaveNote(ctx context.Context, note *Note, removeAccess []UserAccess, removeTags []Tag) (*Note, error)
-	DeleteNote(ctx context.Context, id uuid.UUID) error
-	GetNote(ctx context.Context, id uuid.UUID) (*Note, error)
-	SearchNotes(ctx context.Context, searchingUser uuid.UUID, search string, limit int) ([]NoteSearchResult, error)
-	ListTags(ctx context.Context, userID uuid.UUID, nextID, fetchAmount int) ([]Tag, error)
-}
 
 type Service struct {
 	repo Repository
@@ -41,11 +31,7 @@ func NewService(injector do.Injector) (*Service, error) {
 }
 
 func (s *Service) CreateNote(ctx context.Context, note *Note) (*Note, error) {
-	userID, ok := scope.UserID(ctx)
-	if !ok {
-		log.Info(ctx, "user missing from request context")
-		return nil, apiv1.StatusError(http.StatusForbidden)
-	}
+	userID := scope.MustUserID(ctx)
 
 	noteID, err := uuid.NewV7()
 	if err != nil {
@@ -57,75 +43,104 @@ func (s *Service) CreateNote(ctx context.Context, note *Note) (*Note, error) {
 	note.CreatedBy = users.User{ID: userID}
 	note.UpdatedAt = note.CreatedAt
 	note.UpdatedBy = users.User{ID: userID}
-	note.Access = append(note.Access, UserAccess{
+	note.Access = append(note.Access, users.Access{
 		User:   note.CreatedBy,
-		Access: AccessLevelOwner,
+		Access: users.AccessLevelOwner,
 	})
 
-	savedNote, err := s.repo.SaveNote(ctx, note, nil, nil)
-	if err != nil {
-		return nil, err
+	if err := s.repo.SaveNote(ctx, note); err != nil {
+		log.Error(ctx, "error creating note", zap.Stringer("note_id", note.ID), zap.Error(err))
+		return nil, apiv1.StatusError(http.StatusInternalServerError)
 	}
 
-	return savedNote, nil
+	return note, nil
 }
 
 func (s *Service) UpdateNote(ctx context.Context, note *Note) (*Note, error) {
-	currentState, err := s.repo.GetNote(ctx, note.ID)
+	userID := scope.MustUserID(ctx)
+
+	access, err := s.repo.GetUsersNoteAccess(ctx, note.ID, userID)
 	if err != nil {
-		return nil, err
+		log.Error(ctx, "error retrieving user note access", zap.Stringer("note_id", note.ID), zap.Error(err))
+		return nil, apiv1.StatusError(http.StatusInternalServerError)
 	}
 
-	sortAccess := func(a, b UserAccess) int { return cmp.Compare(a.User.ID.String(), b.User.ID.String()) }
-	sortTags := func(a, b Tag) int { return cmp.Compare(a.ID.String(), b.ID.String()) }
+	// TODO: if editing access, check if access is owner
 
-	slices.SortFunc(currentState.Access, sortAccess)
-	slices.SortFunc(currentState.Tags, sortTags)
-
-	slices.SortFunc(note.Access, sortAccess)
-	slices.SortFunc(note.Tags, sortTags)
-
-	_, removedAccess := util.SliceDiffBy(currentState.Access, note.Access, func(lhs, rhs UserAccess) bool {
-		return lhs.User.ID == rhs.User.ID
-	})
-
-	_, removedTags := util.SliceDiffBy(currentState.Tags, note.Tags, func(lhs, rhs Tag) bool {
-		return lhs.ID == rhs.ID
-	})
-
-	return s.repo.SaveNote(ctx, note, removedAccess, removedTags)
-}
-
-func (s *Service) DeleteNote(ctx context.Context, id uuid.UUID) error {
-	return s.repo.DeleteNote(ctx, id)
-}
-
-func (s *Service) GetNote(ctx context.Context, id uuid.UUID) (*Note, error) {
-	return s.repo.GetNote(ctx, id)
-}
-
-func (s *Service) SearchNotes(ctx context.Context, search string, limit int) ([]NoteSearchResult, error) {
-	userID, ok := scope.UserID(ctx)
-	if !ok {
-		log.Info(ctx, "user missing from request context")
+	if access < users.AccessLevelEditor {
 		return nil, apiv1.StatusError(http.StatusForbidden)
 	}
 
-	if limit == 0 {
-		limit = 100
+	note.UpdatedAt = time.Now()
+	note.UpdatedBy.ID = userID
+
+	if err := s.repo.SaveNote(ctx, note); err != nil {
+		log.Error(ctx, "error saving note", zap.Stringer("note_id", note.ID), zap.Error(err))
+		return nil, apiv1.StatusError(http.StatusInternalServerError)
 	}
 
-	// TODO: search by tags
-
-	return s.repo.SearchNotes(ctx, userID, search, limit)
+	return note, nil
 }
 
-func (s *Service) ListTags(ctx context.Context, nextID, pageSize int) ([]Tag, error) {
-	userID, ok := scope.UserID(ctx)
-	if !ok {
-		log.Info(ctx, "user missing from request context")
+func (s *Service) DeleteNote(ctx context.Context, noteID uuid.UUID) error {
+	userID := scope.MustUserID(ctx)
+
+	access, err := s.repo.GetUsersNoteAccess(ctx, noteID, userID)
+	if err != nil {
+		log.Error(ctx, "error retrieving user note access", zap.Stringer("note_id", noteID), zap.Error(err))
+		return apiv1.StatusError(http.StatusInternalServerError)
+	}
+
+	if access < users.AccessLevelOwner {
+		return apiv1.StatusError(http.StatusForbidden)
+	}
+
+	return s.repo.DeleteNote(ctx, noteID)
+}
+
+func (s *Service) GetNote(ctx context.Context, noteID uuid.UUID) (*Note, error) {
+	userID := scope.MustUserID(ctx)
+
+	access, err := s.repo.GetUsersNoteAccess(ctx, noteID, userID)
+	if err != nil {
+		log.Error(ctx, "error retrieving user note access", zap.Stringer("note_id", noteID), zap.Error(err))
+		return nil, apiv1.StatusError(http.StatusInternalServerError)
+	}
+
+	if access < users.AccessLevelViewer {
 		return nil, apiv1.StatusError(http.StatusForbidden)
 	}
 
-	return s.repo.ListTags(ctx, userID, nextID, pageSize)
+	return s.repo.GetNote(ctx, noteID, userID)
+}
+
+func (s *Service) SearchNotes(ctx context.Context, params NoteSearchParams, pageSize int) ([]NoteSearchResult, *NoteSearchParams, error) {
+	userID := scope.MustUserID(ctx)
+
+	if pageSize == 0 {
+		pageSize = 100
+	}
+
+	// retrive one more to see if there is another page to fetch
+	results, err := s.repo.SearchNotes(ctx, userID, params, pageSize+1)
+	if err != nil {
+		log.Error(ctx, "error searching notes", zap.Error(err))
+		return nil, nil, apiv1.StatusError(http.StatusInternalServerError)
+	}
+
+	var next *NoteSearchParams
+	if len(results) > pageSize {
+		results = results[:pageSize]
+
+		last := &results[len(results)-1]
+
+		next = &NoteSearchParams{
+			TextSearch: params.TextSearch,
+			TagSearch:  params.TagSearch,
+			LastNoteID: uuid.NullUUID{UUID: last.ID, Valid: true},
+			LastRank:   last.Rank,
+		}
+	}
+
+	return results, next, err
 }

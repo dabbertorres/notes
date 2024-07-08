@@ -14,6 +14,7 @@ import (
 
 	"github.com/dabbertorres/notes/internal/config"
 	"github.com/dabbertorres/notes/internal/notes"
+	"github.com/dabbertorres/notes/internal/tags"
 	"github.com/dabbertorres/notes/internal/telemetry"
 	"github.com/dabbertorres/notes/internal/users"
 )
@@ -25,6 +26,7 @@ func main() {
 
 	injector := do.NewWithOpts(&do.InjectorOpts{},
 		notes.Package,
+		tags.Package,
 		users.Package,
 		telemetry.Package,
 	)

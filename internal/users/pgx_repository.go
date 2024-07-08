@@ -11,13 +11,11 @@ import (
 
 	"github.com/dabbertorres/notes/internal/database"
 	"github.com/dabbertorres/notes/internal/log"
-
-	usersdb "github.com/dabbertorres/notes/internal/users/db"
 )
 
 type PGXRepository struct {
 	db      database.Database
-	queries *usersdb.Queries
+	queries *database.Queries
 }
 
 func NewPGXRepository(injector do.Injector) (*PGXRepository, error) {
@@ -28,13 +26,13 @@ func NewPGXRepository(injector do.Injector) (*PGXRepository, error) {
 
 	return &PGXRepository{
 		db:      db,
-		queries: usersdb.New(),
+		queries: database.New(),
 	}, nil
 }
 
 func (r *PGXRepository) SaveUser(ctx context.Context, user *User) (out *User, err error) {
 	err = pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
-		params := usersdb.SaveUserParams{
+		params := database.SaveUserParams{
 			UserID:     user.ID,
 			Name:       user.Name,
 			CreatedAt:  pgtype.Timestamptz{Time: user.CreatedAt, Valid: true},
@@ -56,9 +54,24 @@ func (r *PGXRepository) SaveUser(ctx context.Context, user *User) (out *User, er
 }
 
 func (r *PGXRepository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
-	return pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
-		return r.queries.DeleteUser(ctx, tx, userID)
+	var numDeleted int64
+	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) (err error) {
+		numDeleted, err = r.queries.DeleteUser(ctx, tx, userID)
+		return err
 	})
+	if err != nil {
+		return err
+	}
+
+	if numDeleted > 1 {
+		panic("uh oh this can't happen")
+	}
+
+	if numDeleted == 0 {
+		return pgx.ErrNoRows
+	}
+
+	return nil
 }
 
 func (r *PGXRepository) GetUser(ctx context.Context, userID uuid.UUID) (out *User, err error) {
