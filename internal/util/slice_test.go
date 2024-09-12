@@ -6,6 +6,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestSliceDistinct(t *testing.T) {
+	input := []int{5, 1, 1, 7, 5, 1, 3}
+	expect := []int{5, 1, 7, 3}
+
+	actual := SliceDistinct(input)
+
+	assert.Equal(t, expect, actual)
+}
+
 func TestSliceDiff(t *testing.T) {
 	type testCase struct {
 		name   string

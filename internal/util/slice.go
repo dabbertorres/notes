@@ -1,5 +1,10 @@
 package util
 
+import (
+	"cmp"
+	"slices"
+)
+
 func MapSlice[S ~[]T, T any, O any](slice S, mapper func(T) O) []O {
 	out := make([]O, len(slice))
 	for i, v := range slice {
@@ -14,6 +19,23 @@ func MapSliceIndexed[S ~[]T, T any, O any](slice S, mapper func(int, T) O) []O {
 		out[i] = mapper(i, v)
 	}
 	return out
+}
+
+// SliceDistinct is the same as [SliceDistinctBy], but is more convenient for types that
+// already satisfy [cmp.Ordered].
+func SliceDistinct[S ~[]T, T cmp.Ordered](slice S) S {
+	return SliceDistinctBy(slice, func(lhs, rhs T) int { return cmp.Compare(lhs, rhs) })
+}
+
+// SliceDistinctBy removes duplicate elements from slice as identified by cmp, and returns
+// the resulting modified slice.
+//
+// Note that in addition to contents, the order of elements in the resulting slice is note
+// stable.
+func SliceDistinctBy[S ~[]T, T any](slice S, cmp func(T, T) int) S {
+	slices.SortFunc(slice, cmp)
+	slice = slices.CompactFunc(slice, func(lhs, rhs T) bool { return cmp(lhs, rhs) == 0 })
+	return slice
 }
 
 // SliceDiff does the same thing as [SliceDiffBy], but is a convenience for values
